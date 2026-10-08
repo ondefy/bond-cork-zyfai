@@ -5,23 +5,29 @@ This repository is where Zyfai integrates Cork cover. Zyfai's own code lives in
 integration foundation contributed by Cork: orientation, the runbook, and agent
 context — pinned to one released Cork Distribution.
 
-> **Status** — 2026-09-24. Pinned to Distribution **`phoenix/v0.4-rc.1`**
-> (stage `partner-preview`, review level `unreviewed`). Chains: Arbitrum One
-> (42161) and Base (8453); integrate on **Base first**. This cut is a **new
-> contract generation**: Phoenix, the Market Registry, Rollover and the ForSelf
-> reference adapter are all redeployed on both chains. The previous generation
-> (`phoenix/v0.3-rc.1`) stays live, and the pinned tool reads and prepares
-> against both. **Your deployed adapter is bound to the previous generation** —
-> see "Moving from v0.3-rc.1" and "What this means for your adapter" below.
-> The earlier hackathon integration package that used to live here is removed —
-> see "What happened to the hackathon code" below.
+> **Status** — 2026-10-08. Pinned to Distribution **`phoenix/v0.5-rc.1`**
+> (stage `partner-preview`, review level `unreviewed`) and cork-cli
+> **`v0.7.0-rc.2`**. Chains: Arbitrum One (42161) and Base (8453); integrate on
+> **Base first**. This cut keeps the Phoenix contracts of the previous pin, so
+> your pools, your cover and both your adapters keep working. It changes the
+> RFQ path: cork-cli `0.7` speaks venue RFQ v2 only, and every RFQ write is
+> signed. It also adds rollover RFQs and the filler side of a rollover. See
+> "Moving from v0.4-rc.1" below. The earlier hackathon integration package
+> that used to live here is removed — see "What happened to the hackathon
+> code" below.
 
 ## The one number to track
 
 Everything you integrate against is pinned by a single name:
 
-**[`phoenix/v0.4-rc.1`](https://github.com/Cork-Technology/distribution/blob/main/distributions/phoenix/v0.4-rc.1.json)**
+**[`phoenix/v0.5-rc.1`](https://github.com/Cork-Technology/distribution/blob/main/distributions/phoenix/v0.5-rc.1.json)**
 in [`Cork-Technology/distribution`](https://github.com/Cork-Technology/distribution).
+
+One name is not the other. That name is the **Distribution**, the set of
+component versions. The tool labels each **contract generation** separately,
+in `data.generation`: the primary is still `phoenix/v0.4-rc.1` and the previous
+one `phoenix/v0.3-rc.1`, because this Distribution keeps the same Phoenix pool
+manager. Both names are correct.
 
 That manifest names the exact component versions, per-chain addresses and
 codehashes, vendored ABIs, the third-party contracts the set was built against,
@@ -45,14 +51,14 @@ chain hosts, with each block's addresses and wire).
 | You want | Read |
 |---|---|
 | The integration path, start to finish | [`INTEGRATION.md`](./INTEGRATION.md) — the runbook for this workspace |
-| The full walkthrough with runnable commands | [Zyfai quickstart](https://github.com/Cork-Technology/cork-cli/blob/v0.6.0/docs/zyfai-quickstart.md) (pinned to the released `cork-cli` tag; **orientation, not `v0.6.0` evidence** — most captured outputs date from `v0.2.0-rc.2` on the previous generation; the exercise step and the generation notes were re-captured live in September 2026) |
-| The CLI / MCP command reference | [`ch` reference](https://github.com/Cork-Technology/cork-cli/blob/v0.6.0/docs/cli.md) |
-| The JIT-order contract, field by field | [`jit-order-anatomy.md`](https://github.com/Cork-Technology/cork-cli/blob/v0.6.0/docs/jit-order-anatomy.md) — chain-agnostic and address-free |
-| The TypeScript SDK behind the tool | [`sdk.md`](https://github.com/Cork-Technology/cork-cli/blob/v0.6.0/docs/sdk.md) — `@cork/core`, shipped as attested tarballs on the same release |
+| The full walkthrough with runnable commands | [Zyfai quickstart](https://github.com/Cork-Technology/cork-cli/blob/v0.7.0-rc.2/docs/zyfai-quickstart.md) (pinned to the released `cork-cli` tag; **orientation, not `v0.7.0-rc.2` evidence** — its captures date from `0.6.1-rc.1` and earlier, and its rollover appendix predates `rollover-fill`; the runbook carries the current rollover flow) |
+| The CLI / MCP command reference | [`ch` reference](https://github.com/Cork-Technology/cork-cli/blob/v0.7.0-rc.2/docs/cli.md) |
+| The JIT-order contract, field by field | [`jit-order-anatomy.md`](https://github.com/Cork-Technology/cork-cli/blob/v0.7.0-rc.2/docs/jit-order-anatomy.md) — chain-agnostic and address-free |
+| The TypeScript SDK behind the tool | [`sdk.md`](https://github.com/Cork-Technology/cork-cli/blob/v0.7.0-rc.2/docs/sdk.md) — `@cork/core`, shipped as attested tarballs on the same release |
 | The venue / indexer API | [api-phoenix.cork.tech/docs](https://api-phoenix.cork.tech/docs) |
 | The receiver-forcing adapter you deploy, one per generation | [`cork-periphery`](https://github.com/Cork-Technology/cork-periphery/tree/v0.2.0-rc.1) at `v0.2.0-rc.1` (ForSelf source unchanged since `v0.1.1`; the package no longer ships deploy scripts) |
 | The rollover component's frozen deployment record | [rollover `v0.2.0` release](https://github.com/Cork-Technology/rollover/releases/tag/v0.2.0) — pinned, with caveats; see below |
-| What exactly is deployed, and its assurance | [The manifest](https://github.com/Cork-Technology/distribution/blob/main/distributions/phoenix/v0.4-rc.1.json) |
+| What exactly is deployed, and its assurance | [The manifest](https://github.com/Cork-Technology/distribution/blob/main/distributions/phoenix/v0.5-rc.1.json) |
 
 Agents working in this repository get their context from [`CLAUDE.md`](./CLAUDE.md)
 and operate Cork through the [`cork-integration`](./.claude/skills/cork-integration/SKILL.md)
@@ -66,6 +72,56 @@ INTEGRATION.md                    The runbook: the path, the trust boundary, the
 CLAUDE.md                         Context for agents working in this repository.
 .claude/skills/cork-integration/  Agent skill for operating the pinned Cork Distribution.
 ```
+
+## Moving from v0.4-rc.1
+
+This cut keeps the Phoenix contracts and the generation labels. It changes
+three components. Two of them reach you.
+
+- **Phoenix `1.4.0-rc.1`, Rollover `0.2.0` and `cork-periphery v0.2.0-rc.1`:
+  unchanged.** Your pools, the cover you hold and both your adapters keep
+  working. We checked your second adapter with the released `v0.7.0-rc.2`
+  binary on 2026-10-08 (`ch track` mode `verify`, subject `forSelfAdapter`):
+  it verifies, and its bindings name the primary generation.
+- **Market Registry `0.5.0` → `0.6.0`: one contract changed.** The JIT
+  adapter (`CorkLimitOrderAdapter`, `version()` `0.5.0`) now takes the share
+  token's permit as one `bytes` signature, so a Safe can sign it. You fill and
+  sign nothing on the JIT path, so your route does not change. One effect
+  reaches you: a resting JIT order whose permit uses the old `v, r, s` form
+  cannot fill through the new adapter. Its maker must sign it again. If a
+  quoted order fails the fill pre-flight, tell the underwriter.
+- **`cork-api` `0.4.3` → `0.4.6`.** The venue serves RFQ v2 (`/rfqs/v2`):
+  signed writes, a `fixed_rate` mode, and rollover RFQs. RFQ v1 is still
+  served on its own path, but the new tool does not use it.
+- **`cork-cli` `0.6.0` → `0.7.0-rc.2`, breaking on the RFQ path.** From the
+  pinned [CHANGELOG](https://github.com/Cork-Technology/cork-cli/blob/v0.7.0-rc.2/CHANGELOG.md)
+  (sections `0.7.0-rc.2`, `0.7.0-rc.1`, `0.6.1-rc.*`):
+  1. **RFQ v1 is removed.** Every RFQ read and write goes to `/rfqs/v2`. An RFQ
+     opened on v1 does not show in a v2 read.
+  2. **`rfq-open` requires `kind`:** `new_position` (cover for a new position)
+     or `rollover`. There is no default.
+  3. **Every RFQ write is signed.** `rfq-open` takes `auth`. Build the write
+     with `ch prepare order rfq-write`, sign its `data.typedData` with your
+     Safe in your own stack, and pass
+     `--auth '{"method":"signature","signature":"0x…"}'`. The tool rebuilds the
+     body, recovers the signer and checks your Safe's `isValidSignature`
+     before it relays. The other method, `{"method":"apiKey"}`, needs a venue
+     API key; ask Cork before you use it.
+  4. **Rollover, filler side.** `ch prepare order rollover-fill` builds the
+     fill of a resting rollover order. In a rollover you are the filler; see
+     the runbook's "Rolling cover".
+  5. **New local commands you do not need.** `ch wallet` and `ch sign` keep an
+     EOA key in a local keystore. Your Safe signs in your own stack; keep it
+     there.
+  6. **Every `ch` command and flag your wrapper calls is unchanged.** We
+     checked each one in `zyfai/src/services/cork-cli.ts` against the
+     `v0.7.0-rc.2` binary on 2026-10-08. `zyfai/` needs no change for this cut.
+- **The hosted MCP stays on `0.6.0`** until `0.7.0` final. It speaks RFQ v1
+  only. Run the released binary (`ch`, or `ch mcp` over stdio).
+
+The Distribution owner waived the cross-component integration suite again for
+this cut (deviation D10, 2026-10-08). Read the manifest's deviations and
+`knownIssues` before you trade.
 
 ## Moving from v0.3-rc.1
 
@@ -143,6 +199,9 @@ every contract address; this one does not. What changed:
 
 ## What this means for your adapter
 
+Written for the move to the new generation (`phoenix/v0.4-rc.1`, primary since
+2026-09-24). It still holds under `phoenix/v0.5-rc.1`.
+
 1. **Nothing you run today breaks.** Your deployed `CorkForSelfAdapter`, the
    cover you hold, and `buy:cover` against an existing market all live on
    `phoenix/v0.3-rc.1`. The pinned tool resolves that generation from the pool
@@ -155,7 +214,9 @@ every contract address; this one does not. What changed:
    manager, and the constructor requires the whitelist manager of the same
    pool manager. A fill or exercise on a `phoenix/v0.4-rc.1` pool through it
    is refused by the tool (`adapter_binding_mismatch`) before any bytes exist.
-3. **To trade on the new generation, deploy a second adapter.** Same source
+3. **To trade on the new generation, deploy a second adapter.** You did this
+   on 2026-09-30 and filled your second cover through it the same day. It
+   still serves the primary under `phoenix/v0.5-rc.1`. Same source
    (`cork-periphery v0.2.0-rc.1`, unchanged ForSelf code), same selectors,
    new constructor arguments: the new pool manager, the new whitelist manager,
    the same LOP — all read live from `ch query protocol-config`. Whitelist the
