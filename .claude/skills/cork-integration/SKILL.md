@@ -1,9 +1,9 @@
 ---
 name: cork-integration
-description: Operate Cork Distribution phoenix/v0.4-rc.1 through the cork-cli MCP server — read protocol state, derive markets, build and verify unsigned order artifacts, and run the cover flow. Use for any task that touches Cork markets, cST/cPT, quotes, orders, fills, or exercise.
+description: Operate Cork Distribution phoenix/v0.5-rc.1 through the cork-cli MCP server — read protocol state, derive markets, build and verify unsigned order artifacts, and run the cover flow. Use for any task that touches Cork markets, cST/cPT, quotes, orders, fills, exercise, or rollover.
 ---
 
-# Operating Cork phoenix/v0.4-rc.1
+# Operating Cork phoenix/v0.5-rc.1
 
 This skill replaces the retired `cork-operations` skill, whose address book
 pointed at deployments that no longer exist. This skill deliberately carries
@@ -12,13 +12,20 @@ reads live state, so the skill's job is wiring, sequencing, and guardrails.
 
 ## Setup
 
-Requires the cork-cli MCP server at the pinned tag **`v0.6.0`**. Install
+Requires the cork-cli MCP server at the pinned tag **`v0.7.0-rc.2`**. Install
 and MCP registration:
-[quickstart §"the integration kit"](https://github.com/Cork-Technology/cork-cli/blob/v0.6.0/docs/zyfai-quickstart.md).
+[quickstart §"the integration kit"](https://github.com/Cork-Technology/cork-cli/blob/v0.7.0-rc.2/docs/zyfai-quickstart.md).
 Never treat an address printed in any doc as current, however fresh the
 capture; read addresses live.
 Self-test: a healthy install answers **exactly 9 tools**. If it doesn't, fix
 the install before doing anything else — do not work around a partial surface.
+Run the released binary (`ch mcp` over stdio). The hosted endpoint
+`mcp.cork.tech` stays on `0.6.0` until `0.7.0` final, and `0.6.0` speaks only
+RFQ v1.
+
+The Distribution is `phoenix/v0.5-rc.1`; the contract generations the tool
+prints are still `phoenix/v0.4-rc.1` (primary) and `phoenix/v0.3-rc.1`
+(previous). Both names are correct. Do not treat the difference as a mismatch.
 
 ## The tool surface and its trust model
 
@@ -46,7 +53,7 @@ Signing and key custody stay in the caller's stack, always.
    come from `cork_query` at the moment of use. Anything remembered from a doc,
    a prior session, or this repository's history is presumed stale.
 3. **The manifest is the authority on versions.**
-   [`phoenix/v0.4-rc.1`](https://github.com/Cork-Technology/distribution/blob/main/distributions/phoenix/v0.4-rc.1.json)
+   [`phoenix/v0.5-rc.1`](https://github.com/Cork-Technology/distribution/blob/main/distributions/phoenix/v0.5-rc.1.json)
    pins the set. If a tool, doc, or API self-reports something that contradicts
    it, stop and surface the mismatch instead of picking a side silently.
 4. **Verify before submit.** Run the `cork_track` verification/simulation on a
@@ -82,16 +89,32 @@ Signing and key custody stay in the caller's stack, always.
     the generation it answered from (`data.generation`); read it before you act.
     `cork_capabilities topic:"generations"` is the contract,
     `topic:"migration"` the exit-and-re-enter recipe.
-11. **A ForSelf adapter serves one generation.** Zyfai's deployed adapter is
-    bound to the `phoenix/v0.3-rc.1` pool manager. Fill or exercise through it
-    only on pools whose `data.generation` is `phoenix/v0.3-rc.1`. For a pool on
-    the primary, the tool refuses `adapter_binding_mismatch` and builds nothing;
-    report that, do not route around it. A second adapter, bound to the primary,
-    is the fix (runbook step 7).
+11. **A ForSelf adapter serves one generation.** Zyfai runs two adapters: one
+    bound to the `phoenix/v0.3-rc.1` pool manager, one bound to the primary's.
+    Pick the adapter whose generation equals the pool's `data.generation`. A
+    wrong pairing is refused `adapter_binding_mismatch` with no bytes; report
+    it, do not route around it. `cork_track` mode `verify` with subject
+    `forSelfAdapter` reads an adapter's bindings and names its generation.
 12. **Rank the book for the adapter.** On `cork_query orderbook`, pass the
     adapter as `filters.account`: the ranked view then classifies each row's
     reservation against the address that will call the LOP — the adapter, not
     the Safe — and lists rows the adapter cannot fill under `excluded`.
+13. **RFQ writes are venue RFQ v2, and every one is signed.** `rfq-open` needs
+    `kind` (`new_position` for cover on a new position) and `auth`. Build the
+    write with `cork_prepare_orders` `rfq-write`, have the Safe sign
+    `data.typedData` in Zyfai's stack, then pass
+    `auth: {method: "signature", signature}` to `cork_submit`. The tool checks
+    the Safe's `isValidSignature` before it relays. An RFQ opened on v1 does
+    not show in a v2 read.
+14. **In a rollover, Zyfai is the filler, not the requester.** The cPT holder
+    signs the rollover order and opens any rollover RFQ (it names the premium
+    token it accepts). The cST holder fills: `cork_query rollover-orders`
+    (`filters.rfqId` for the orders that answer one RFQ), then
+    `cork_prepare_orders` `rollover-fill`. The fill pays the premium and
+    delivers the destination cST. It calls BaseFiller directly, not a ForSelf
+    adapter, so the destination is an argument a contract-and-selector
+    whitelist cannot see. Do not hand it to a session key; it is an owner
+    action until a receiver-forcing rollover route exists. Always simulate it.
 
 ## Escalation
 
